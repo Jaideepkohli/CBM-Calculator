@@ -1,50 +1,57 @@
-document.getElementById('addRow').addEventListener('click', function () {
-    const table = document.getElementById('inputTable').getElementsByTagName('tbody')[0];
-    const newRow = table.insertRow();
-
-    const cell1 = newRow.insertCell(0);
-    const cell2 = newRow.insertCell(1);
-    const cell3 = newRow.insertCell(2);
-    const cell4 = newRow.insertCell(3);
-    const cell5 = newRow.insertCell(4);
-    cell1.innerHTML = `
-        <select class="unit">
-            <option value="cms">cms</option>
-            <option value="inches">inches</option>
-        </select>
-    `;
-    cell2.innerHTML = `<input type="number" class="cartons" min="1" value="1">`;
-    cell3.innerHTML = `<input type="number" class="length" step="0.1" required>`;
-    cell4.innerHTML = `<input type="number" class="width" step="0.1" required>`;
-    cell5.innerHTML = `<input type="number" class="height" step="0.1" required>`;
-});
-
 document.getElementById('calculate').addEventListener('click', function () {
-    const rows = document.querySelectorAll('#inputTable tbody tr');
     let totalCBM = 0;
+    
+    document.querySelectorAll('#inputTable tbody tr').forEach(row => {
+        let unit = row.querySelector('.unit').value;
+        let cartons = parseFloat(row.querySelector('.cartons').value) || 0;
+        let length = parseFloat(row.querySelector('.length').value) || 0;
+        let width = parseFloat(row.querySelector('.width').value) || 0;
+        let height = parseFloat(row.querySelector('.height').value) || 0;
 
-    rows.forEach(row => {
-        const unit = row.querySelector('.unit').value;
-        const cartons = parseFloat(row.querySelector('.cartons').value);
-        const length = parseFloat(row.querySelector('.length').value);
-        const width = parseFloat(row.querySelector('.width').value);
-        const height = parseFloat(row.querySelector('.height').value);
-
-        if (isNaN(cartons) || isNaN(length) || isNaN(width) || isNaN(height)) {
-            alert('Please fill in all fields for all rows.');
-            return;
+        // Convert inches to cm if selected
+        if (unit === 'inches') {
+            length *= 2.54;
+            width *= 2.54;
+            height *= 2.54;
         }
 
-        // Convert dimensions to inches if the unit is "cms"
-        const conversionFactor = (unit === 'cms') ? 0.393701 : 1;
-        const lengthInches = length * conversionFactor;
-        const widthInches = width * conversionFactor;
-        const heightInches = height * conversionFactor;
-
-        // Calculate CBM for the row
-        const cbm = (lengthInches * widthInches * heightInches) / 61024;
-        totalCBM += cbm * cartons;
+        let cbm = (length * width * height * cartons) / 1000000;
+        totalCBM += cbm;
     });
 
-    document.getElementById('totalCBM').textContent = totalCBM.toFixed(2);
+    // Ensure minimum CBM is 2
+    totalCBM = totalCBM < 2 ? 2 : totalCBM;
+
+    // **Fix: Update Considered CBM in the UI**
+    let cbmElement = document.getElementById('breakdownCBM');
+    if (cbmElement) {
+        cbmElement.textContent = totalCBM.toFixed(2); // Rounds to 2 decimal places
+    } else {
+        console.error("Element with ID 'breakdownCBM' not found.");
+    }
+
+    // Shipping cost calculation
+    let rate;
+    if (totalCBM <= 5) {
+        rate = 189;
+    } else if (totalCBM <= 10) {
+        rate = 159;
+    } else if (totalCBM <= 15) {
+        rate = 119;
+    } else if (totalCBM <= 25) {
+        rate = 109;
+    } else {
+        rate = 89;
+    }
+
+    let shippingCost = totalCBM * rate;
+    let pickupCost = parseFloat(document.getElementById('pickupPrice').value) || 0;
+    let clearanceCost = parseFloat(document.getElementById('invoiceValue').value) || 0;
+    let totalCost = shippingCost + pickupCost + clearanceCost;
+
+    // **Fix: Ensure values are rounded and formatted**
+    document.getElementById("breakdownPickup").textContent = `$${Math.ceil(pickupCost)}`;
+    document.getElementById("breakdownShipping").textContent = `$${Math.ceil(shippingCost)}`;
+    document.getElementById("breakdownClearance").textContent = `$${Math.ceil(clearanceCost)}`;
+    document.getElementById("breakdownTotal").textContent = `$${Math.ceil(totalCost)}`;
 });
